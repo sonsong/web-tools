@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试网址是否正常</title>
+    <link rel="shortcut icon" href="/img/sign.png" type="image/x-icon">
+    <script src="http://oss.sheetjs.com/js-xlsx/xlsx.full.min.js"></script>
+    <script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+    <style>
+        table{
+            width: 100%;
+            border-spacing: 0;
+            text-align: center;
+        }
+        table tr td{
+            text-align: left;
+        }
+        table tr td, th{
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" onchange="importf(this)" />
+    <div id="demo">
+        <div>
+            <p>检测结果</p>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>部门</th>
+                        <th>网站地址</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody class="result">
+                    
+                </tbody>
+            </table>
+            <p id="wating" style="display: none">请稍后，正在检测...</p>
+            <p>
+                <button id="downLoad" style="display: none">导出检测结果</button>
+            </p>
+        </div>
+    </div>
+    <script>
+            $(() =>{
+                $('#downLoad').on('click', function(){
+                    let outerHtml = document.getElementsByClassName('table')[0].outerHTML;
+                    let template = `
+                    <html>
+                        <head>
+                            <meta charset='utf-8' />
+                            <style>
+                                    table{
+                                        width: 50%;
+                                        border-spacing: 0;
+                                        text-align: center;
+                                    }
+                                    table tr td, th{
+                                        border: 1px solid black;
+                                    }
+                            </style>
+                        </head>
+                        <body>
+                            ${outerHtml}
+                        </body>
+                        </html>
+                    `;
+
+                    var excelBlob = new Blob([template], {type: 'application/vnd.ms-excel'});
+                    // 创建一个a标签
+                    var oA = document.createElement('a');
+                    // 利用URL.createObjectURL()方法为a元素生成blob URL
+                    oA.href = URL.createObjectURL(excelBlob);
+                    // 给文件命名
+                    oA.download = '检测结果.xls';
+                    // 模拟点击
+                    oA.click();
+                    $(this).append(oA);
+                })
+            })
+            var wb; //读取完成的数据
+            var rABS = false; //是否将文件读取为二进制字符串
+
+            function importf(obj) { 
+                $('#wating').css('display', 'block');
+
+                if (!obj.files) {
+                    return;
+                }
+                var f = obj.files[0];
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var data = e.target.result;
+                    if (rABS) {
+                        wb = XLSX.read(btoa(fixdata(data)), { //手动转化
+                            type: 'base64'
+                        });
+                    } else {
+                        wb = XLSX.read(data, {
+                            type: 'binary'
+                        });
+                    }
+                    //wb.SheetNames[0]是获取Sheets中第一个Sheet的名字
+                    //wb.Sheets[Sheet名]获取第一个Sheet的数据
+                    let datas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    
+                    //去重
+                    let result = [];
+
+                    for(let i= 0;i< datas.length; i++){
+                        let flag = true;
+                　　
+                        for(let j=0;j< result.length; j++){
+                                let data = datas[i].website;
+                                let _result = result[j].website;
+
+                                //去掉协议比较 去重
+                                if(data.indexOf('http') !== -1){
+                                    data = data.substring('http://'.length);
+                                }else if(data.indexOf('https') !== -1){
+                                    data = data.substring('https://'.length);
+                                }
+
+                                if(_result.indexOf('http') !== -1){
+                                    _result = _result.substring('http://'.length);
+                                }else if(_result.indexOf('https') !== -1){
+                                    _result = _result.substring('https://'.length);
+                                }
+
+                　　　　 if(data == _result){
+                　　　　　　flag = false;
+                　　　　 };
+                　　};
+
+                　　if(flag){
+                            result.push(datas[i]);
+                　　};
+                 };
+
+                    //向后台提供数据
+                    $.ajax({
+                        url: '/postWebsites',
+                        type: 'POST',
+                        dataType: 'json',
+                        data:{
+                            websites: result    
+                        },
+                        success(res){
+                            $('#wating').css('display', 'none');
+                            $('#downLoad').css('display', 'block');
+
+                            res.datas.forEach((item, index) =>{
+                                let html = $('.result').html();
+                                if(item.code){
+                                    html += `<tr><td>${index}</td><td>${item.item.name}</td><td>${item.item.website}</td>`;
+
+                                    if (item.code === 1) {
+                                        html += `<td>${item.mess}</td></tr>`;
+                                    } else {
+                                        html += `<td style="color:red">${item.mess}</td></tr>`;
+                                    }
+                                }
+                                $('.result').html(html);
+                            })
+                        }
+                    })
+                };
+                if (rABS) {
+                    reader.readAsArrayBuffer(f);
+                } else {
+                    reader.readAsBinaryString(f);
+                }
+            }
+
+            function fixdata(data) { //文件流转BinaryString
+                var o = "",
+                    l = 0,
+                    w = 10240;
+                for (; l < data.byteLength / w; ++l) o += String.fromCharCode.apply(null, new Uint8Array(data.slice(l * w,
+                    l * w + w)));
+                o += String.fromCharCode.apply(null, new Uint8Array(data.slice(l * w)));
+                return o;
+        }
+        </script>
+</body>
+</html>

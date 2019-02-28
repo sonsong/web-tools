@@ -1,0 +1,24 @@
+{
+  "name": "test-website",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "pm2 start pm2.json --env test",
+    "start": "pm2 start pm2.json --env production",
+    "dev": "pm2 start pm2.json --env development"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "art-template": "^4.13.2",
+    "cheerio": "^1.0.0-rc.2",
+    "iconv-lite": "^0.4.24",
+    "koa": "^2.7.0",
+    "koa-art-template": "^1.1.1",
+    "koa-bodyparser": "^4.2.1",
+    "koa-router": "^7.4.0",
+    "koa-static": "^5.0.0",
+    "request": "^2.88.0"
+  }
+}
